@@ -1,0 +1,95 @@
+#!/bin/sh -e
+
+VENV_BASE=${VENV_BASE:-"${HOME}/.pipinstall"}
+VENV_PATH=${VENV_PATH:-"${VENV_BASE}/venvs"}
+BIN_PATH=${BIN_PATH:-"${VENV_BASE}/bin"}
+
+__usage="
+Usage: $(basename $0) [OPTIONS]
+
+Options:
+  -pkg, --package <name>
+                            Specify the pip package name. REQUIRED
+  -e,   --expose <name>
+                            Specify any particular binary to expose. Binaries
+                            called the same as the package name are
+                            automatically exposed.
+  -u,   --update
+                            Update the package
+  -h,   --help
+                            Show this help
+
+All binaries will be exposed in ${BIN_PATH}, so make sure to add that to your
+\$PATH.
+
+If you want to specify ourself where the binaries and virtual environments
+end up, then you can use the following environment variables:
+
+VENV_PATH - Absolute path to where the virtual environments are kept
+BIN_PATH - Absolute path to where the exposed binaries are kept
+"
+
+if ! { which pipenv 2>&1 ;} >/dev/null; then
+    printf "Please install pipenv on this system first\n"
+    exit 1
+fi
+
+update=0
+expose=""
+
+while [ "$#" -gt 0 ]; do
+    case $1 in
+        -pkg|--package) pkg_name="$2"; shift ;;
+        -e|--expose) expose=$2; shift ;;
+        -u|--update) update=1 ;;
+        -h|--help) printf "%s\n" "$__usage"; exit 0 ;;
+        *) printf "Unknown parameter passed: %s\n" "$1"; exit 1 ;;
+    esac
+    shift
+done
+
+if [ -z "$pkg_name" ]; then
+    printf "No package specified, it is required\n"
+    exit 1
+fi
+
+pkg_path="${VENV_PATH}/${pkg_name}"
+mkdir -p "$pkg_path"
+cd "$pkg_path"
+
+if [ ! -f Pipfile ]; then
+    pipenv install "$pkg_name"
+fi
+
+if [ "$update" = "1" ]; then
+    pipenv run pip install -U "pip"
+    pipenv run pip install -U "$pkg_name"
+fi
+
+expose_binary() {
+    bin_name=$1 
+    mkdir -p "$BIN_PATH"
+    bin_file="$BIN_PATH/$bin_name"
+
+    printf "Exposing %s as %s\n" "$bin_name" "$bin_file"
+
+    mkdir -p "$pkg_path/bin"
+    cat <<EOF >"$pkg_path/bin/$bin_name"
+#!/bin/sh -e
+
+cd "$pkg_path"
+pipenv run "$bin_name" \$*
+EOF
+    ln -sf "$pkg_path/bin/$bin_name" "$bin_file"
+    chmod +x "$pkg_path/$bin_name"
+}
+
+if { pipenv run ls "\${VIRTUAL_ENV}/bin/${pkg_name}" 2>&1 ;} >/dev/null ; then
+    expose_binary "$pkg_name"
+else
+    printf "\nNo binary named '%s' found\n" "$pkg_name"
+fi
+
+if [ "$expose" != "" ]; then
+    expose_binary "$expose"
+fi
