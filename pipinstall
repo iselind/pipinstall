@@ -67,7 +67,7 @@ if [ "$update" = "1" ]; then
 fi
 
 expose_binary() {
-    bin_name=$1 
+    bin_name=$1
     mkdir -p "$BIN_PATH"
     bin_file="$BIN_PATH/$bin_name"
 
@@ -80,8 +80,9 @@ expose_binary() {
 cd "$pkg_path"
 pipenv run "$bin_name" \$*
 EOF
+    chmod +x "$pkg_path/bin/$bin_name"
+
     ln -sf "$pkg_path/bin/$bin_name" "$bin_file"
-    chmod +x "$pkg_path/$bin_name"
 }
 
 if { pipenv run ls "\${VIRTUAL_ENV}/bin/${pkg_name}" 2>&1 ;} >/dev/null ; then
