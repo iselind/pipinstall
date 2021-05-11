@@ -22,8 +22,8 @@ Options:
 All binaries will be exposed in ${BIN_PATH}, so make sure to add that to your
 \$PATH.
 
-If you want to specify ourself where the binaries and virtual environments
-end up, then you can use the following environment variables:
+If you want to specify yourself where the binaries and virtual environments end
+up, then you can use the following environment variables:
 
 VENV_PATH - Absolute path to where the virtual environments are kept
 BIN_PATH - Absolute path to where the exposed binaries are kept
@@ -42,14 +42,14 @@ while [ "$#" -gt 0 ]; do
         -pkg|--package) pkg_name="$2"; shift ;;
         -e|--expose) expose=$2; shift ;;
         -u|--update) update=1 ;;
-        -h|--help) printf "%s\n" "$__usage"; exit 0 ;;
-        *) printf "Unknown parameter passed: %s\n" "$1"; exit 1 ;;
+        -h|--help) printf '%s\n' "$__usage"; exit 0 ;;
+        *) printf 'Unknown parameter passed: %s\n' "$1"; exit 1 ;;
     esac
     shift
 done
 
 if [ -z "$pkg_name" ]; then
-    printf "No package specified, it is required\n"
+    printf 'No package specified, it is required\n'
     exit 1
 fi
 
@@ -71,14 +71,20 @@ expose_binary() {
     mkdir -p "$BIN_PATH"
     bin_file="$BIN_PATH/$bin_name"
 
-    printf "Exposing %s as %s\n" "$bin_name" "$bin_file"
+    printf 'Exposing %s as %s\n' "$bin_name" "$bin_file"
 
     mkdir -p "$pkg_path/bin"
     cat <<EOF >"$pkg_path/bin/$bin_name"
 #!/bin/sh -e
 
-cd "$pkg_path"
-pipenv run "$bin_name" \$*
+USER_PATH=\$PWD
+
+cd $(pipenv --venv)
+. ./bin/activate
+
+cd "\$USER_PATH"
+
+"$bin_name" \$*
 EOF
     chmod +x "$pkg_path/bin/$bin_name"
 
@@ -88,7 +94,7 @@ EOF
 if { pipenv run ls "\${VIRTUAL_ENV}/bin/${pkg_name}" 2>&1 ;} >/dev/null ; then
     expose_binary "$pkg_name"
 else
-    printf "\nNo binary named '%s' found\n" "$pkg_name"
+    printf '\nNo binary named "%s" found\n' "$pkg_name"
 fi
 
 if [ "$expose" != "" ]; then
